@@ -1,6 +1,7 @@
 import os
 import configparser
 
+###############################################################################
 class GitRepository(object):
   """a git repository"""
 
@@ -30,12 +31,13 @@ class GitRepository(object):
       if vers != 0:
         raise Exception(f"unsupported repositoryformatversion: {vers}")
 
-###----------------------------------------------------------------------------
+###############################################################################
 
 def repo_path(repo, *path):
   """compute path under repo's gitdir"""
   return os.path.join(repo.gitdir, *path)
 
+#------------------------------------------------------------------------------
 def repo_file(repo, *path, mkdir=False):
   """same as repo_path, but create dirname(*path) if absent. for example, 
 repo_file(r, \"refs\", \"remotes\", \"origin\", \"HEAD\" will create
@@ -44,6 +46,7 @@ repo_file(r, \"refs\", \"remotes\", \"origin\", \"HEAD\" will create
   if repo_dir(repo, *path[:-1], mkdir=mkdir):
     return repo_path(repo, *path)
 
+#------------------------------------------------------------------------------
 def repo_dir(repo, *path, mkdir=False):
   """same as repo_path, but mkdir *path if mkdir is absent"""
 
@@ -61,6 +64,29 @@ def repo_dir(repo, *path, mkdir=False):
   else:
     return None
 
+#------------------------------------------------------------------------------
+def repo_find(path=".", required=True):
+  path = os.path.realpath(path)
+
+  if os.path.isdir(os.path.join(path, ".git")):
+    return GitRepository(path)
+
+  # if we haven't returned, recurse in parent
+  parent = os.path.realpath(os.path.join(path, ".."))
+
+  if parent == path:
+    # bottom case
+    # os.path.join("/", "..") == "/":
+    # if parent == path, then path is root
+    if required:
+      raise Exception("no git directory")
+    else:
+      return None
+
+  # recursive case
+  return repo_find(parent, required)
+
+#------------------------------------------------------------------------------
 def repo_default_config():
   ret = configparser.ConfigParser()
 
@@ -71,6 +97,7 @@ def repo_default_config():
 
   return ret
 
+#------------------------------------------------------------------------------
 def repo_create(path):
   """create a new repository at path"""
 
