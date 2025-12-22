@@ -27,6 +27,22 @@ argsp.add_argument("object",
                    metavar="object",
                    help="the object to display")
 
+argsp = argsubparsers.add_parser(
+    "hash-object",
+    help="compute object ID and optionally creates a blob from a file")
+argsp.add_argument("-t",
+                   metavar="type",
+                   dest="type",
+                   choices=["blob", "commit", "tag", "tree"],
+                   default="blob",
+                   help="specify the type")
+argsp.add_argument("-w",
+                   dest="write",
+                   action="store_true",
+                   help="actually write the object into the database")
+argsp.add_argument("path",
+                   help="read object from <file>")
+
 def main(argv=sys.argv[1:]):
   args = argparser.parse_args(argv)
   match args.command:
@@ -58,3 +74,13 @@ def cmd_cat_file(args):
 def cat_file(repo, obj, fmt=None):
   obj = o.object_read(repo, o.object_find(repo, obj, fmt=fmt))
   sys.stdout.buffer.write(obj.serialize())
+
+def cmd_hash_object(args):
+  if args.write:
+    repo = r.repo_find()
+  else:
+    repo = None
+
+  with open(args.path, "rb") as fd:
+    sha = o.object_hash(fd, args.type.encode(), repo)
+    print(sha)

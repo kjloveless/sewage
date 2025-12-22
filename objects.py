@@ -3,7 +3,6 @@ import zlib
 import hashlib
 
 import repo as r
-import blob
 import git
 
 def object_read(repo, sha):
@@ -63,3 +62,18 @@ def object_write(obj, repo=None):
 #------------------------------------------------------------------------------
 def object_find(repo, name, fmt=None, follow=True):
   return name
+
+#------------------------------------------------------------------------------
+def object_hash(fd, fmt, repo=None):
+  """hash object, writing it to repo if provided"""
+  data = fd.read()
+
+  # choose constructor according to fmt argument
+  match fmt:
+    case b'commit'      : obj=git.GitCommit(data)
+    case b'tree'        : obj=git.GitTree(data)
+    case b'tag'         : obj=git.GitTag(data)
+    case b'blob'        : obj=git.GitBlob(data)
+    case _: raise Exception(f"unknown type {fmt}")
+
+  return object_write(obj, repo)
