@@ -66,4 +66,15 @@ class GitRepository(object):
         raise Exception(f"unsupported repositoryformatversion: {vers}")
 
 ###############################################################################
+class GitCommit(GitObject):
+  fmt = b'commit'
+
+  def deserialize(self, data):
+    self.kvlm = k.kvlm_parse(data)
+
+  def serialize(self):
+    return k.kvlm_serialize(self.kvlm)
+
+  def init(self):
+    self.kvlm = dict()
 
