@@ -50,7 +50,7 @@ def object_write(obj, repo=None):
 
   if repo:
     # compute path
-    path = repo.repo_file(repo, "objects", sha[0:2], sha[2:], mkdir=True)
+    path = r.repo_file(repo, "objects", sha[0:2], sha[2:], mkdir=True)
 
     if not os.path.exists(path):
       with open(path, 'wb') as f:

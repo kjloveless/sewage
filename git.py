@@ -99,3 +99,7 @@ class GitTree(GitObject):
 
   def init(self):
     self.items = list()
+
+###############################################################################
+class GitTag(GitCommit):
+  fmt = b'tag'
