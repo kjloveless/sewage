@@ -29,9 +29,9 @@ type depends on the object"""
 
     # pick constructor
     match fmt:
-      case b'commit'    : c=GitCommit
-      case b'tree'      : c=GitTree
-      case b'tag'       : c=GitTag
+      case b'commit'    : c=git.GitCommit
+      case b'tree'      : c=git.GitTree
+      case b'tag'       : c=git.GitTag
       case b'blob'      : c=git.GitBlob
       case _:
         raise Exception(f"unknown type {fmt.decode("ascii")} for object {sha}")

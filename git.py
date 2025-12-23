@@ -2,6 +2,7 @@ import os
 import configparser
 
 import repo as r
+import kvlm as k
 
 class GitObject(object):
   def __init__(self, data=None):
