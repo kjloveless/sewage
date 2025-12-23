@@ -83,6 +83,16 @@ argsp.add_argument("object",
                    nargs="?",
                    help="the object the new tag will point to")
 
+argsp = argsubparsers.add_parser("rev-parse",
+                                 help="parse revision (or other objects) identifiers")
+argsp.add_argument("--sewage-type",
+                   metavar="type",
+                   dest="type",
+                   choices=["blob", "commit", "tag", "tree"],
+                   default=None,
+                   help="specify the expected type")
+argsp.add_argument("name", help="the name to parse")
+
 def main(argv=sys.argv[1:]):
   args = argparser.parse_args(argv)
   match args.command:
@@ -173,6 +183,16 @@ def cmd_tag(args):
   else:
     refs = ref.ref_list(repo)
     ref.show_ref(repo, refs["tags"], with_hash=False)
+
+def cmd_rev_parse(args):
+  if args.type:
+    fmt = args.type.encode()
+  else:
+    fmt = None
+
+  repo = r.repo_find()
+
+  print(o.object_find(repo, args.name, fmt, follow=True))
 
 def log_graphviz(repo, sha, seen):
   if sha in seen:
