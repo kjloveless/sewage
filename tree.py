@@ -57,7 +57,7 @@ def tree_serialize(obj):
     ret += b' '
     ret += i.path.encode("utf8")
     ret += b'\x00'
-    ret += int(i.sha, 16)
+    sha = int(i.sha, 16)
     ret += sha.to_bytes(20, byteorder="big")
   return ret
 

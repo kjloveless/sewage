@@ -1,9 +1,11 @@
 import os
 import zlib
 import hashlib
+import re
 
 import repo as r
 import git
+import ref
 
 def object_read(repo, sha):
   """read object sha from git repository repo. return a GitObject whose exact
@@ -61,7 +63,39 @@ def object_write(obj, repo=None):
 
 #------------------------------------------------------------------------------
 def object_find(repo, name, fmt=None, follow=True):
-  return name
+  sha = object_resolve(repo, name)
+
+  if not sha:
+    raise Exception(f"no such referemce {name}")
+
+  if len(sha) > 1:
+    raise Exception(f"ambiguous reference {name}: candidates are:\n - {'\n - '.join(sha)}")
+
+  sha = sha[0]
+
+  if not fmt:
+    return sha
+
+  while True:
+    obj = object_read(repo, sha)
+    #     ^^^^^^^^^^^^^ < this is a bit aggressive: we're reading the full
+    #     object just to get its type. and we're doing that in a loop, albeit
+    #     normally short. don't expect high performance here
+    if obj.fmt == fmt:
+      return sha
+
+    if not follow:
+      return None
+
+    # follow tags
+    if obj.fmt == b'tag':
+      sha = obj.kvlm[b'object'].decode("ascii")
+    elif obj.fmt == b'commit' and fmt == b'tree':
+      sha = obj.kvlm[b'tree'].decode("ascii")
+    else:
+      return None
+
+
 
 #------------------------------------------------------------------------------
 def object_hash(fd, fmt, repo=None):
@@ -77,3 +111,55 @@ def object_hash(fd, fmt, repo=None):
     case _: raise Exception(f"unknown type {fmt}")
 
   return object_write(obj, repo)
+
+#------------------------------------------------------------------------------
+def object_resolve(repo, name):
+  """resolve name to an object hash in repo.
+
+this function is aware of:
+
+  - the HEAD literal
+  - short and long hashes
+  - tags
+  - branches
+  - remote branches"""
+  candidates = list()
+  hashRE = re.compile(r"^[0-9A-Fa-f]{4,40}$")
+
+  # empty string? abort
+  if not name.strip():
+    return None
+
+  # head is ambiguous
+  if name == "HEAD":
+    return [ ref.ref_resolve(repo, "HEAD") ]
+
+  # if it's a hex string, try for a hash
+  if hashRE.match(name):
+    # this may be a hash, either small or full. 4 seems to be the minimal 
+    # length for git to consider something a short hash. this limit is 
+    # documented in man git-rev-parse
+    name = name.lower()
+    prefix = name[0:2]
+    path = r.repo_dir(repo, "objects", prefix, mkdir=False)
+    if path:
+      rem = name[2:]
+      for f in os.listdir(path):
+        if f.startswith(rem):
+          # notice a string startswith() itself, so this works for full hashes
+          candidates.append(prefix + f)
+
+  # try for referencees
+  as_tag = ref.ref_resolve(repo, "refs/tags/" + name)
+  if as_tag:
+    candidates.append(as_tag)
+
+  as_branch = ref.ref_resolve(repo, "refs/heads/" + name)
+  if as_branch:
+    candidates.append(as_branch)
+
+  as_remote_branch = ref.ref_resolve(repo, "refs/remotes/" + name)
+  if as_remote_branch:
+    candidates.append(as_remote_branch)
+
+  return candidates
