@@ -1,4 +1,7 @@
+import os
+
 import git as g
+import objects as o
 
 def tree_parse_one(raw, start=0):
   # find the space terminator of the mode
@@ -57,3 +60,17 @@ def tree_serialize(obj):
     ret += int(i.sha, 16)
     ret += sha.to_bytes(20, byteorder="big")
   return ret
+
+#------------------------------------------------------------------------------
+def tree_checkout(repo, tree, path):
+  for item in tree.items:
+    obj = o.object_read(repo, item.sha)
+    dest = os.path.join(path, item.path)
+
+    if obj.fmt == b'tree':
+      os.mkdir(dest)
+      tree_checkout(repo, obj, dest)
+    elif obj.fmt == b'blob':
+      # todo: support symlinks (identified by mode 12****)
+      with open(dest, 'wb') as f:
+        f.write(obj.blobdata)

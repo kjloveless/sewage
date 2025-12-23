@@ -4,6 +4,7 @@ import os
 
 import repo as r 
 import objects as o
+import tree as t
 
 argparser = argparse.ArgumentParser(description="the worst content tracker")
 
@@ -58,6 +59,12 @@ argsp.add_argument("-r",
 argsp.add_argument("tree",
                    help="a tree-ish object")
 
+argsp = argsubparsers.add_parser("checkout", help="checkout a commit inside a directory")
+argsp.add_argument("commit",
+                   help="the commit or tree to checkout")
+argsp.add_argument("path",
+                   help="the empty directory to checkout on")
+
 def main(argv=sys.argv[1:]):
   args = argparser.parse_args(argv)
   match args.command:
@@ -111,6 +118,26 @@ def cmd_log(args):
   print(" node[shape=rect]")
   log_graphviz(repo, o.object_find(repo, args.commit), set())
   print("}")
+
+def cmd_checkout(args):
+  repo = r.repo_find()
+
+  obj = o.object_read(repo, o.object_find(repo, args.commit))
+
+  # if the object is a commit, we grab its tree
+  if obj.fmt == b'commit':
+    obj = o.object_read(repo, obj.kvlm[b'tree'].decode("ascii"))
+
+  # verify that path is an empty directory
+  if os.path.exists(args.path):
+    if not os.path.isdir(args.path):
+      raise Exception(f"not a directory {args.path}")
+    if os.listdir(args.path):
+      raise Exception(f"not empty {args.path}")
+  else:
+    os.makedirs(args.path)
+
+  t.tree_checkout(repo, obj, os.path.realpath(args.path))
 
 def log_graphviz(repo, sha, seen):
   if sha in seen:
