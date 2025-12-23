@@ -3,6 +3,7 @@ import configparser
 
 import repo as r
 import kvlm as k
+import tree as t
 
 class GitObject(object):
   def __init__(self, data=None):
@@ -79,3 +80,22 @@ class GitCommit(GitObject):
   def init(self):
     self.kvlm = dict()
 
+###############################################################################
+class GitTreeLeaf(object):
+  def __init__(self, mode, path, sha):
+    self.mode = mode
+    self.path = path
+    self.sha = sha
+
+###############################################################################
+class GitTree(GitObject):
+  fmt = b'tree'
+
+  def deserialize(self, data):
+    self.items = t.tree_parse(data)
+
+  def serialize(self):
+    return t.tree_serialize(self)
+
+  def init(self):
+    self.items = list()

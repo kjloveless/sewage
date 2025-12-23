@@ -1,5 +1,6 @@
 import argparse
 import sys
+import os
 
 import repo as r 
 import objects as o
@@ -49,6 +50,14 @@ argsp.add_argument("commit",
                    nargs="?",
                    help="commit to start at")
 
+argsp = argsubparsers.add_parser("ls-tree", help="pretty-print a tree object")
+argsp.add_argument("-r",
+                   dest="recursive",
+                   action="store_true",
+                   help="recurse into sub-trees")
+argsp.add_argument("tree",
+                   help="a tree-ish object")
+
 def main(argv=sys.argv[1:]):
   args = argparser.parse_args(argv)
   match args.command:
@@ -91,6 +100,10 @@ def cmd_hash_object(args):
     sha = o.object_hash(fd, args.type.encode(), repo)
     print(sha)
 
+def cmd_ls_tree(args):
+  repo = r.repo_find()
+  ls_tree(repo, args.tree, args.recursive)
+
 def cmd_log(args):
   repo = r.repo_find()
 
@@ -128,3 +141,25 @@ def log_graphviz(repo, sha, seen):
     p = p.decode("ascii")
     print(f"  c_{sha} -> c_{p};")
     log_graphviz(repo, p, seen)
+
+def ls_tree(repo, ref, recursive=None, prefix=""):
+  sha = o.object_find(repo, ref, fmt=b"tree")
+  obj = o.object_read(repo, sha)
+  for item in obj.items:
+    if len(item.mode) == 5:
+      type = item.mode[0:1]
+    else:
+      type = item.mode[0:2]
+
+    match type:
+      case b'04': type = "tree"
+      case b'10': type = "blob"
+      case b'12': type = "blob"
+      case b'16': type = "commit"
+      case _: raise Exception(f"weird tree lead mode {item.mode}")
+
+    if not (recursive and type=='tree'):
+      print(f"{'0' * (6 - len(item.mode)) + item.mode.decode("ascii")} {type} {item.sha}\t{os.path.join(prefix, item.path)}")
+    else:
+      ls_tree(repo, item.sha, recursive, os.path.join(prefix, item.path))
+
