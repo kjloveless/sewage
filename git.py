@@ -103,3 +103,50 @@ class GitTree(GitObject):
 ###############################################################################
 class GitTag(GitCommit):
   fmt = b'tag'
+
+###############################################################################
+class GitIndexEntry(object):
+  def __init__(self, ctime=None, mtime=None, dev=None, ino=None,
+               mode_type=None, mode_perms=None, uid=None, gid=None,
+               fsize=None, sha=None, flag_assume_valid=None,
+               flag_stage=None, name=None):
+    # the last time a files metadata changed. this is a pair 
+    # (timestamp in seconds, nanoseconds)
+    self.ctime = ctime
+    # the last time a files data changed. this is a pair 
+    # (timestamp in seconds, nanoseconds)
+    self.mtime = mtime
+    # the id of device containing this file
+    self.dev = dev
+    # the files inode number
+    self.ino = ino
+    # the object type, either b1000 (regular), b1010 (symlink), b1110(gitlink)
+    self.mode_type = mode_type
+    # the objects permissions, an integer
+    self.mode_perms = mode_perms
+    # user id of owner
+    self.uid = uid
+    # group id of owner
+    self.gid = gid
+    # size of this object, in bytes
+    self.fsize = fsize
+    # the objects sha
+    self.sha = sha
+    self.flag_assume_valid = flag_assume_valid
+    self.flag_stage = flag_stage
+    # name of the object (full path this time)
+    self.name = name
+
+###############################################################################
+class GitIndex(object):
+  version = None
+  entries = []
+  # ext = None
+  # sha = None
+
+  def __init__(self, version=2, entries=None):
+    if not entries:
+      entries = list()
+
+    self.version = version
+    self.entries = entries

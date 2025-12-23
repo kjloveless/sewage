@@ -1,11 +1,14 @@
 import argparse
 import sys
 import os
+from datetime import datetime
+import grp, pwd
 
 import repo as r 
 import objects as o
 import tree as t
 import ref as ref
+import index as i
 import git
 
 argparser = argparse.ArgumentParser(description="the worst content tracker")
@@ -93,6 +96,9 @@ argsp.add_argument("--sewage-type",
                    help="specify the expected type")
 argsp.add_argument("name", help="the name to parse")
 
+argsp = argsubparsers.add_parser("ls-files", help="list all the stage files")
+argsp.add_argument("--verbose", action="store_true", help="show everything")
+
 def main(argv=sys.argv[1:]):
   args = argparser.parse_args(argv)
   match args.command:
@@ -113,6 +119,24 @@ def main(argv=sys.argv[1:]):
     case "tag"            : cmd_tag(args)
     case _                : print("unknown command")
 
+def cmd_ls_files(args):
+  repo = r.repo_find()
+  index = i.index_read(repo)
+  if args.verbose:
+    print(f"index file format v{index.version}, containing {len(index.entries)} entries")
+
+  for e in index.entries:
+    print(e.name)
+    if args.verbose:
+      entry_type = { 0b1000: "regular file",
+                      0b1010: "symlink",
+                      0b1110: "git link" }[e.mode_type]
+      print(f"  {entry_type} with perms: {e.mode_perms:o}")
+      print(f"  on blob: {e.sha}")
+      print(f"  created: {datetime.fromtimestamp(e.ctime[0])}.{e.ctime[1]}, modified: {datetime.fromtimestamp(e.mtime[0])}.{e.mtime[1]}")
+      print(f"  device: {e.dev}, inode: {e.ino}")
+      print(f"  user: {pwd.getpwuid(e.uid).pw_name} ({e.uid}) group: {grp.getgrgid(e.gid).gr_name} ({e.gid})")
+      print(f"  flags: stage={e.flag_stage} assume_valid={e.flag_assume_valid}")
 
 def cmd_init(args):
   r.repo_create(args.path)
