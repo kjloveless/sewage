@@ -5,6 +5,7 @@ import os
 import repo as r 
 import objects as o
 import tree as t
+import ref
 
 argparser = argparse.ArgumentParser(description="the worst content tracker")
 
@@ -64,6 +65,8 @@ argsp.add_argument("commit",
                    help="the commit or tree to checkout")
 argsp.add_argument("path",
                    help="the empty directory to checkout on")
+
+argsp = argsubparsers.add_parser("show-ref", help="list references")
 
 def main(argv=sys.argv[1:]):
   args = argparser.parse_args(argv)
@@ -139,6 +142,11 @@ def cmd_checkout(args):
 
   t.tree_checkout(repo, obj, os.path.realpath(args.path))
 
+def cmd_show_ref(args):
+  repo = r.repo_find()
+  refs = ref.ref_list(repo)
+  show_ref(repo, refs, prefix="refs")
+
 def log_graphviz(repo, sha, seen):
   if sha in seen:
     return
@@ -190,3 +198,13 @@ def ls_tree(repo, ref, recursive=None, prefix=""):
     else:
       ls_tree(repo, item.sha, recursive, os.path.join(prefix, item.path))
 
+def show_ref(repo, refs, with_hash=True, prefix=""):
+  if prefix:
+    prefix = prefix + '/'
+  for k, v in refs.items():
+    if type(v) == str and with_hash:
+      print(f"{v} {prefix}{k}")
+    elif type(v) == str:
+      print(f"{prefix}{k}")
+    else:
+      show_ref(repo, v, with_hash=with_hash, prefix=f"{prefix}{k}")
