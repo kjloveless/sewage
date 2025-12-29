@@ -99,6 +99,9 @@ argsp.add_argument("name", help="the name to parse")
 argsp = argsubparsers.add_parser("ls-files", help="list all the stage files")
 argsp.add_argument("--verbose", action="store_true", help="show everything")
 
+argsp = argsubparsers.add_parser("check-ignore", help="check path(s) against ignore rules.")
+argsp.add_argument("path", nargs="+", help="paths to check")
+
 def main(argv=sys.argv[1:]):
   args = argparser.parse_args(argv)
   match args.command:
@@ -118,6 +121,13 @@ def main(argv=sys.argv[1:]):
     case "status"         : cmd_status(args)
     case "tag"            : cmd_tag(args)
     case _                : print("unknown command")
+
+def cmd_check_ignore(args):
+  repo = r.repo_find()
+  rules = git.gitignore_read(repo)
+  for path in args.path:
+    if git.check_ignore(rules, path):
+      print(path)
 
 def cmd_ls_files(args):
   repo = r.repo_find()
