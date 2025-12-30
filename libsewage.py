@@ -102,6 +102,8 @@ argsp.add_argument("--verbose", action="store_true", help="show everything")
 argsp = argsubparsers.add_parser("check-ignore", help="check path(s) against ignore rules.")
 argsp.add_argument("path", nargs="+", help="paths to check")
 
+argsp = argsubparsers.add_parser("status", help="show the working tree status.")
+
 def main(argv=sys.argv[1:]):
   args = argparser.parse_args(argv)
   match args.command:
@@ -121,6 +123,94 @@ def main(argv=sys.argv[1:]):
     case "status"         : cmd_status(args)
     case "tag"            : cmd_tag(args)
     case _                : print("unknown command")
+
+def cmd_status(_):
+  repo = r.repo_find()
+  index = i.index_read(repo)
+
+  cmd_status_branch(repo)
+  cmd_status_head_index(repo, index)
+  print()
+  cmd_status_index_worktree(repo, index)
+
+def cmd_status_head_index(repo, index):
+  print("changes to be committed:")
+
+  head = t.tree_to_dict(repo, "HEAD")
+  for entry in index.entries:
+    if entry.name in head:
+      if head[entry.name] != entry.sha:
+        print(" modified:", entry.name)
+      del head[entry.name] # delete the key
+    else:
+      print(" added:    ", entry.name)
+
+  # keys still in HEAD are files that we haven't met in the index and thus
+  # have been deleted
+  for entry in head.keys():
+    print(" deleted: ", entry)
+
+def cmd_status_index_worktree(repo, index):
+  print("changes not staged for commit:")
+
+  ignore = git.gitignore_read(repo)
+
+  gitdir_prefix = repo.gitdir + os.path.sep
+
+  all_files = list()
+
+  # we begin by walking the filesystem
+  for (root, _, files) in os.walk(repo.worktree, True):
+    if root == repo.gitdir or root.startswith(gitdir_prefix):
+      continue
+    for f in files:
+      full_path = os.path.join(root, f)
+      rel_path = os.path.relpath(full_path, repo.worktree)
+      all_files.append(rel_path)
+
+  # we now traverse the index, and compare real files with the cached 
+  # versions
+  for entry in index.entries:
+    full_path = os.path.join(repo.worktree, entry.name)
+
+    # that file *name* is in the index
+    if not os.path.exists(full_path):
+      print(" deleted: ", entry.name)
+    else:
+      stat = os.stat(full_path)
+      
+      # compare metadata
+      ctime_ns = entry.ctime[0] * 10**9 + entry.ctime[1]
+      mtime_ns = entry.mtime[0] * 10**9 + entry.mtime[1]
+      if (stat.st_ctime_ns != ctime_ns) or (stat.st_mtime_ns != mtime_ns):
+        # if different, deep compare. @TODO: "this will crash on symlinks to
+        # dir
+        with open(full_path, "rb") as fd:
+          new_sha = o.object_hash(fd, b"blob", None)
+          # if the hashes are the same, the files are actuallythe same
+          same = entry.sha == new_sha
+
+          if not same:
+            print(" modified:", entry.name)
+
+    if entry.name in all_files:
+      all_files.remove(entry.name)
+
+  print()
+  print("untracked files:")
+
+  for f in all_files:
+    # @TODO: if a fulldirectory is untracked, we should display its name
+    # without its contents
+    if not git.check_ignore(ignore, f):
+      print(" ", f)
+
+def cmd_status_branch(repo):
+  branch = t.branch_get_active(repo)
+  if branch:
+    print(f"on branch {branch}")
+  else:
+    print(f"HEAD detached at {o.object_find(repo, 'HEAD')}")
 
 def cmd_check_ignore(args):
   repo = r.repo_find()

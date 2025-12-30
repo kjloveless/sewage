@@ -2,6 +2,7 @@ import os
 
 import git as g
 import objects as o
+import repo as r
 
 def tree_parse_one(raw, start=0):
   # find the space terminator of the mode
@@ -74,3 +75,34 @@ def tree_checkout(repo, tree, path):
       # todo: support symlinks (identified by mode 12****)
       with open(dest, 'wb') as f:
         f.write(obj.blobdata)
+
+#-------------------------------------------------------------------------------
+def branch_get_active(repo):
+  with open(r.repo_file(repo, "HEAD"), "r") as f:
+    head = f.read()
+
+  if head.startswith("ref: refs/heads/"):
+    return head[16:-1]
+  else:
+    return False
+
+#-------------------------------------------------------------------------------
+def tree_to_dict(repo, ref, prefix=""):
+  ret = dict()
+  tree_sha = o.object_find(repo, ref, fmt=b"tree")
+  tree = o.object_read(repo, tree_sha)
+
+  for leaf in tree.items:
+    full_path = os.path.join(prefix, leaf.path)
+
+    # we read the object to extract its type (this is uselessly expensive;
+    # we could just open it as a file and read the first few bytes)
+    is_subtree = leaf.mode.startswith(b'04')
+
+    # depending on the type, we either store the path (if it's a blob, so  a 
+    # regular file), or recurse (if it's another tree. so a subdir)
+    if is_subtree:
+      ret.update(tree_to_dict(repo, leaf.sha, full_path))
+    else:
+      ret[full_path] = leaf.sha
+  return ret
